@@ -1,0 +1,4 @@
+64a65,67
+> #elif defined EMPL_TARGET_LINUX
+> #include "linux_glue.h"
+> 

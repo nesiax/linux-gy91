@@ -1,0 +1,3 @@
+40a41,42
+> #elif defined EMPL_TARGET_LINUX
+> 	unsigned int pin;
