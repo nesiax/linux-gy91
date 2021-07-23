@@ -40,24 +40,24 @@ int bmp2xx_set_config(bmp280_config_t *conf, bmp280_dev_t *bmp)
 {
     int8_t rslt;
 
-    /* Always read the current settings before writing, especially when
-     * all the configuration is not modified
-     */
-    rslt = bmp280_get_config(conf, bmp);
-    if (rslt != BMP280_OK)
-        {
-            print_rslt(" bmp280_get_config status", rslt);
-        }
+    /* /\* Always read the current settings before writing, especially when */
+    /*  * all the configuration is not modified */
+    /*  *\/ */
+    /* rslt = bmp280_get_config(conf, bmp); */
+    /* if (rslt != BMP280_OK) */
+    /*     { */
+    /*         print_rslt(" bmp280_get_config status", rslt); */
+    /*     } */
 
     /* configuring the temperature oversampling, filter coefficient and output data rate */
     /* Overwrite the desired settings */
     conf->filter = BMP280_FILTER_COEFF_2;
 
     /* Temperature oversampling set at 4x */
-    conf->os_temp = BMP280_OS_4X;
+    //conf->os_temp = BMP280_OS_4X;
 
     /* Pressure over sampling none (disabling pressure measurement) */
-    conf->os_pres = BMP280_OS_NONE;
+    //conf->os_pres = BMP280_OS_NONE;
 
     /* Setting the output data rate as 1HZ(1000ms) */
     conf->odr = BMP280_ODR_1000_MS;

@@ -48,6 +48,7 @@ void register_sig_handler();
 void sigint_handler(int sig);
 
 void read_temp_loop(bmp280_dev_t *bmp);
+void read_mixed_loop(unsigned int sample_rate, bmp280_dev_t *bmp);
 
 int done;
 
@@ -165,6 +166,9 @@ int main(int argc, char **argv)
 
     register_sig_handler();
 
+    // mpu9250
+    {
+
     mpu9250_set_debug(verbose);
 
     if (mpu9250_init(i2c_bus, sample_rate, yaw_mix_factor))
@@ -178,18 +182,114 @@ int main(int argc, char **argv)
 
     if (mag_cal_file)
         free(mag_cal_file);
+    }
 
-    /*    read_loop(sample_rate);*/
+    // read_loop(sample_rate);
 
+    // bmp280
+    {
     rslt = bmp2xx_init(&bmp, bmp2xx_delay_ms, i2c_reg_read, i2c_reg_write);
-    rslt = bmp2xx_set_config(&conf, &bmp);
 
-    read_temp_loop(&bmp);
+   /* Always read the current settings before writing, especially when
+     * all the configuration is not modified
+     */
+    rslt = bmp280_get_config(&conf, &bmp);
+    print_rslt(" bmp280_get_config status", rslt);
+
+    /* configuring the temperature oversampling, filter coefficient and output data rate */
+    /* Overwrite the desired settings */
+    conf.filter = BMP280_FILTER_COEFF_2;
+
+    /* Pressure oversampling set at 4x */
+    conf.os_pres = BMP280_OS_4X;
+
+    /* Setting the output data rate as 1HZ(1000ms) */
+    conf.odr = BMP280_ODR_1000_MS;
+    rslt = bmp280_set_config(&conf, &bmp);
+    print_rslt(" bmp280_set_config status", rslt);
+
+    /* Always set the power mode after setting the configuration */
+    rslt = bmp280_set_power_mode(BMP280_NORMAL_MODE, &bmp);
+    print_rslt(" bmp280_set_power_mode status", rslt);
+    }
+
+    // Enter main loop
+    read_mixed_loop(sample_rate, &bmp);
 
     mpu9250_exit();
 
     return 0;
 }
+
+
+void read_mixed_loop(unsigned int sample_rate, bmp280_dev_t *bmp)
+{
+    unsigned long loop_delay;
+    mpudata_t mpu;
+
+    // bmp280
+    int rslt;
+    struct bmp280_uncomp_data ucomp_data;
+
+    // temp
+    //int32_t temp32;
+    //double temp;
+
+    // press
+    uint32_t pres32, pres64;
+    double pres;
+
+
+    memset(&mpu, 0, sizeof(mpudata_t));
+
+    if (sample_rate == 0)
+        return;
+
+    loop_delay = (1000 / sample_rate) - 2;
+
+    printf("\nEntering read loop (ctrl-c to exit)\n\n");
+
+    //linux_delay_ms(loop_delay);
+
+
+
+    while (!done) {
+        if (mpu9250_read(&mpu) == 0) {
+            print_fused_euler_angles(&mpu);
+            //print_fused_quaternions(&mpu);
+            //print_calibrated_accel(&mpu);
+            //print_calibrated_mag(&mpu);
+        }
+
+        // bmp280
+        {
+            /* Reading the raw data from sensor */
+            rslt = bmp280_get_uncomp_data(&ucomp_data, bmp);
+
+            /* Getting the compensated pressure using 32 bit precision */
+            rslt = bmp280_get_comp_pres_32bit(&pres32, ucomp_data.uncomp_press, bmp);
+
+            /* Getting the compensated pressure using 64 bit precision */
+            rslt = bmp280_get_comp_pres_64bit(&pres64, ucomp_data.uncomp_press, bmp);
+
+            /* Getting the compensated pressure as floating point value */
+            rslt = bmp280_get_comp_pres_double(&pres, ucomp_data.uncomp_press, bmp);
+            printf("UP: %d, P32: %d, P64: %d, P64N: %d, P: %f\r\n",
+                   ucomp_data.uncomp_press,
+                   pres32,
+                   pres64,
+                   pres64 / 256,
+                   pres);
+            //bmp->delay_ms(1000); /* Sleep time between measurements = BMP280_ODR_1000_MS */
+        }
+
+        linux_delay_ms(loop_delay);
+    }
+
+    printf("\n\n");
+}
+
+
 
 void read_temp_loop(bmp280_dev_t *bmp)
 {
