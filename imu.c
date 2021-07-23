@@ -33,6 +33,11 @@
 #include "linux_glue.h"
 #include "local_defaults.h"
 
+#include "Bosch/bmp280_defs.h"
+#include "Bosch/bmp280.h"
+#include "bmp2xx/bmp2xx.h"
+#include "linux/i2cutils.h"
+
 int set_cal(int mag, char *cal_file);
 void read_loop(unsigned int sample_rate);
 void print_fused_euler_angles(mpudata_t *mpu);
@@ -41,6 +46,8 @@ void print_calibrated_accel(mpudata_t *mpu);
 void print_calibrated_mag(mpudata_t *mpu);
 void register_sig_handler();
 void sigint_handler(int sig);
+
+void read_temp_loop(bmp280_dev_t *bmp);
 
 int done;
 
@@ -66,6 +73,7 @@ void usage(char *argv_0)
 
 int main(int argc, char **argv)
 {
+    // mpu9250
     int opt, len;
     int i2c_bus = DEFAULT_I2C_BUS;
     int sample_rate = DEFAULT_SAMPLE_RATE_HZ;
@@ -73,6 +81,15 @@ int main(int argc, char **argv)
     int verbose = 0;
     char *mag_cal_file = NULL;
     char *accel_cal_file = NULL;
+
+    // bmp280
+    int8_t rslt;
+    bmp280_dev_t bmp;
+    bmp280_config_t conf;
+    /* struct bmp280_uncomp_data ucomp_data; */
+    /* int32_t temp32; */
+    /* double temp; */
+
 
     while ((opt = getopt(argc, argv, "b:s:y:a:m:vh")) != -1) {
         switch (opt) {
@@ -162,12 +179,44 @@ int main(int argc, char **argv)
     if (mag_cal_file)
         free(mag_cal_file);
 
-    read_loop(sample_rate);
+    /*    read_loop(sample_rate);*/
+
+    rslt = bmp2xx_init(&bmp, bmp2xx_delay_ms, i2c_reg_read, i2c_reg_write);
+    rslt = bmp2xx_set_config(&conf, &bmp);
+
+    read_temp_loop(&bmp);
 
     mpu9250_exit();
 
     return 0;
 }
+
+void read_temp_loop(bmp280_dev_t *bmp)
+{
+    int rslt;
+    struct bmp280_uncomp_data ucomp_data;
+    int32_t temp32;
+    double temp;
+
+    while (1)
+    {
+        /* Reading the raw data from sensor */
+        rslt = bmp280_get_uncomp_data(&ucomp_data, bmp);
+
+        /* Getting the 32 bit compensated temperature */
+        rslt = bmp280_get_comp_temp_32bit(&temp32, ucomp_data.uncomp_temp, bmp);
+
+        /* Getting the compensated temperature as floating point value */
+        rslt = bmp280_get_comp_temp_double(&temp, ucomp_data.uncomp_temp, bmp);
+        printf("UT: %d, T32: %d, T: %f \r\n", ucomp_data.uncomp_temp, temp32, temp);
+
+        /* Sleep time between measurements = BMP280_ODR_1000_MS */
+        bmp->delay_ms(1000);
+    }
+
+}
+
+
 
 void read_loop(unsigned int sample_rate)
 {

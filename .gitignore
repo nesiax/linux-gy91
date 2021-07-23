@@ -1,8 +1,17 @@
+# c
+
 imu
 Makefile
 *.o
 imucal
+
+# emacs
+
 *~
+\#*\#
+.\#*
+
+# app
 
 accelcal.txt
 magcal.txt

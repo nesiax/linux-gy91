@@ -1,7 +1,6 @@
+# -*- makefile -*-
 #
 # Makefile for eMPL Linux userland implementation
-#
-# -*- makefile -*-
 #
 
 CC = gcc
@@ -13,32 +12,47 @@ DEFS = -DEMPL_TARGET_LINUX -DMPU9250
 EMPLDIR = eMPL
 GLUEDIR = glue
 MPUDIR = mpu9250
+#
+BOSCHDIR = Bosch
+BMPDIR = bmp2xx
+LNXDIR = linux
 
 OBJS = inv_mpu.o \
-       inv_mpu_dmp_motion_driver.o \
-       linux_glue.o \
-       mpu9250.o \
-       quaternion.o \
-       vector3d.o
+        inv_mpu_dmp_motion_driver.o \
+        linux_glue.o \
+        mpu9250.o \
+	bmp280.o \
+        bmp2xx.o \
+        utils.o \
+        i2cutils.o \
+        i2cbusses.o \
+        quaternion.o \
+        vector3d.o
 
 
 all : imu imucal
 
 
 imu : $(OBJS) imu.o
-	$(CC) $(CFLAGS) $(OBJS) imu.o -lm -o imu
+	$(CC) $(CFLAGS) $(OBJS) imu.o -lm -li2c -o imu
 
 imucal : $(OBJS) imucal.o
-	$(CC) $(CFLAGS) $(OBJS) imucal.o -lm -o imucal
+	$(CC) $(CFLAGS) $(OBJS) imucal.o -lm -li2c -o imucal
 
 imu.o : imu.c
-	$(CC) $(CFLAGS) -I $(EMPLDIR) -I $(GLUEDIR) -I $(MPUDIR) $(DEFS) -c imu.c
+	$(CC) $(CFLAGS) -I $(EMPLDIR) -I $(GLUEDIR) -I $(MPUDIR) -I $(BMPDIR) -I ${BOSCHDIR} $(DEFS) -c imu.c
 
 imucal.o : imucal.c
 	$(CC) $(CFLAGS) -I $(EMPLDIR) -I $(GLUEDIR) -I $(MPUDIR) $(DEFS) -c imucal.c
 
 mpu9250.o : $(MPUDIR)/mpu9250.c
 	$(CC) $(CFLAGS) $(DEFS) -I $(EMPLDIR) -I $(GLUEDIR) -c $(MPUDIR)/mpu9250.c
+
+bmp2xx.o : $(BMPDIR)/bmp2xx.c
+	$(CC) $(CFLAGS) $(DEFS) -I $(BOSCHDIR) -I $(BMPDIR) -c $(BMPDIR)/bmp2xx.c
+
+utils.o : $(BMPDIR)/utils.c
+	$(CC) $(CFLAGS) $(DEFS) -I $(BOSCHDIR) -I $(BMPDIR) -c $(BMPDIR)/utils.c
 
 quaternion.o : $(MPUDIR)/quaternion.c
 	$(CC) $(CFLAGS) $(DEFS) -c $(MPUDIR)/quaternion.c
@@ -55,6 +69,14 @@ inv_mpu_dmp_motion_driver.o : $(EMPLDIR)/inv_mpu_dmp_motion_driver.c
 inv_mpu.o : $(EMPLDIR)/inv_mpu.c
 	$(CC) $(CFLAGS) $(DEFS) -I $(EMPLDIR) -I $(GLUEDIR) -c $(EMPLDIR)/inv_mpu.c
 
+bmp280.o : $(BOSCHDIR)/bmp280.c
+	$(CC) $(CFLAGS) $(DEFS) -I $(BOSCHDIR) -c $(BOSCHDIR)/bmp280.c
+
+i2cutils.o : $(LNXDIR)/i2cutils.c
+	$(CC) $(CFLAGS) $(DEFS) -I $(LNXDIR) -c $(LNXDIR)/i2cutils.c
+
+i2cbusses.o : $(LNXDIR)/i2cbusses.c
+	$(CC) $(CFLAGS) $(DEFS) -I $(LNXDIR) -c $(LNXDIR)/i2cbusses.c
 
 clean:
 	rm -f *.o imu imucal
